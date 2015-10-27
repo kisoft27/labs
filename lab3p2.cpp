@@ -1,6 +1,5 @@
 #include <iostream>
 #include <list>
-#include <vector>
 #include <cstdlib>
 
 using namespace std;
@@ -30,6 +29,14 @@ template <typename T> void print_list(T list) {
 	cout << endl;
 }
 
+/*
+Печатаем список с помощью двух итераторов с головы и с хвоста
+Контролируем сколько напечатано проверкой переменной ls, в которую
+занесли длину списка и
+уменьшаем на 1 при печати каждого элемента
+(в задании подсказка про рекурсию -- понятия не имею куда ее тут вставлять
+и без нее отлично, а с ней только сложней будет)
+*/
 template <typename T> void print_list_ht(T list) {
 	cout << "Print list from head and tail>>" << endl;
 	if (list.empty()) {
