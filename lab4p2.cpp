@@ -58,9 +58,19 @@ public:
        ++current;
        return *this;
    }
+   FIterator& operator --()
+   {
+       --current;
+       return *this;
+   }
    FIterator& operator +(int i)
    {
        current += i;
+       return *this;
+   }
+   FIterator& operator -(int i)
+   {
+       current -= i;
        return *this;
    }
 //   FIterator operator ++(int i)
