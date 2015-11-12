@@ -124,14 +124,20 @@ class PhoneBookControl {
 		}
 	}
 	void printCurrentState() {
+		cout << "=====================" << endl;
 		cout << "Current Record:" << endl;
 		pb->printRec();
 	}
 	void printCommands() {
 		cout << endl;
+		cout << "---------------------" << endl;
 		cout << "Available commands:" << endl;
 		cout << " q - quit " << endl;
 		cout << " < > - move to prev/next record " << endl;
+		cout << " p n - move to prev/next 5 records " << endl;
+		cout << " s - jump to start of phonebook " << endl;
+		cout << " a - add a record to phonebook " << endl;
+		cout << " m - modify current record to phonebook " << endl;
 		
 	}
 	PhoneBookRec getNameAndPhone() {
