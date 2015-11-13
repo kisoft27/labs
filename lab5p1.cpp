@@ -32,14 +32,6 @@ DataStruct createDataStruct() {// int _key1, int _key2, std::string _str) {
 	return ds;
 }
 
-DataStruct createDataStructX() {// int _key1, int _key2, std::string _str) {
-	DataStruct ds;
-	ds.key1 = 1;
-	ds.key2 = 2;
-	ds.str = "x";
-	return ds;
-}
-
 void printDataStructVector(vector<DataStruct> dsv) {
 	for(int i=0; i<dsv.size();i++) {
 		cout << "DataStruct {" << endl;
