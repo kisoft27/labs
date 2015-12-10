@@ -1,10 +1,22 @@
+/**
+    Formula Calculator
+    v.0.3
+
+    @author
+
+*/
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <list>
+#include <map>
 #include <cmath>
 #include <math.h>
 #include <algorithm>
+//#include <exception>
+#include <stdexcept>
+
+#define DEBUGPRINT false
 
 using namespace std;
 
@@ -56,7 +68,7 @@ struct Operation {
 */
 class Operations {
 public:
-    bool isOperation(string str) {
+    static bool isOperation(string str) {
         if ( lop.empty())
             return false;
         for (list<Operation>::iterator it = lop.begin(); it!=lop.end(); it++ )
@@ -65,7 +77,7 @@ public:
             }
         return false;
     }
-    int getPriotity(string str) {
+    static int getPriotity(string str) {
         if ( lop.empty() )
             return 9999;
         for (list<Operation>::iterator it = lop.begin(); it!=lop.end(); it++ )
@@ -74,10 +86,14 @@ public:
             }
         return 9999;
     }
+    static void addOper(Operation op) {
+        lop.push_back(op);
+    }
 
-    list<Operation> lop;
+    static list<Operation> lop ;
 };
-Operations op;
+//Operations op;
+list<Operation> Operations::lop {};
 
 /**
     Класс для хранения операций и операндов
@@ -96,7 +112,7 @@ public:
     void setOperation(string opname, int col) {
         oper.name = opname;
         oper.col = col;
-        oper.priority = op.getPriotity(opname);
+        oper.priority = Operations::getPriotity(opname);
     }
     inline void setVarName(string varname) { oper.varname = varname; }
     inline string getVarName() { return oper.varname; }
@@ -155,7 +171,7 @@ private:
 
 *
 */
-list<CalcNode> parse(string str, int s_start, int s_end = 0) {
+list<CalcNode> _parse(string str, int s_start, int s_end = 0) {
     list<CalcNode> lcn;
     if ( s_end == 0 ) {
         s_end = str.length()-1;
@@ -171,7 +187,7 @@ list<CalcNode> parse(string str, int s_start, int s_end = 0) {
                     // если буква то переменная или функция
     for(int i=s_start; i<=s_end; i++) {
 
-        if ( str[i] == ' ' ) {
+        if ( str[i] == ' ' || str[i] == ';' ) {
             switch (type) {
                 case NONE:
                     break;
@@ -199,13 +215,14 @@ list<CalcNode> parse(string str, int s_start, int s_end = 0) {
                     break;
                 }
             }
+            if ( str[i] == ';' ) break;
             continue;
 
         }
 
         string t1 = temp + str[i];
         // вместе с последним символом это операция -- типа sin(
-        if (op.isOperation(t1)) {
+        if (Operations::isOperation(t1)) {
             CalcNode cn;
             cn.setOperation(t1,i);
             lcn.push_back(cn);
@@ -216,7 +233,7 @@ list<CalcNode> parse(string str, int s_start, int s_end = 0) {
         }
         t1 = str[i];
         // это операция из одного символа - типа + или (
-        if (op.isOperation(t1)) {
+        if (Operations::isOperation(t1)) {
             switch (type) {
                 case NONE:
                     break;
@@ -307,7 +324,7 @@ list<CalcNode> parse(string str, int s_start, int s_end = 0) {
     обратной польской записи по алгоритму (типа) Э. Дейкстра
 */
 
-list<CalcNode> list2RPN(list<CalcNode> lcn) {
+list<CalcNode> _list2RPN(list<CalcNode> lcn) {
     list<CalcNode> rpn_list; // здесь на выходу будет ОПЗ
     list<CalcNode> t_list; // стек (Техас)
     for( list<CalcNode>::iterator it = lcn.begin(); it!=lcn.end(); it++ ) {
@@ -386,22 +403,35 @@ list<CalcNode> list2RPN(list<CalcNode> lcn) {
     return rpn_list;
 }
 
+
+map <string,double> Variables = {{ "e", 2.7182818284590452354 },
+                                 { "pi", 3.14159265358979323846 },///map явно инициализирована
+                                 { "Sister", 20. }};
 /**
     Функция для подстановки переменных
     (временно, нужно придумать что то получше)
 */
 double getVar(string var) {
-    if ( var == "e" )
+    map<string,double>::iterator it = Variables.find(var);
+//    for (it=Variables.begin();it!=Variables.end();it++)
+//        cout <<"\n"<<(*it).first << " : " << it->second;
+//    cout << "\n";
+//    it = Variables.find(var);
+    if (it != Variables.end())
+        return it->second;
+/*    if ( var == "e" )
         return 2.7182818284590452354 ;
     if ( var == "pi" )
         return 3.14159265358979323846;
+*/
+    throw std::runtime_error("Can't find variable: "+var);
 }
 
 
 /**
     Вычисление выражения по обратной польсокй записи
 */
-void Calc(list<CalcNode> rpn) {
+double _Calc(list<CalcNode> rpn) {
     list<CalcNode> calcstack;
     for(list<CalcNode>::iterator it=rpn.begin(); it != rpn.end(); it++) {
         CalcNode& r = *it;
@@ -421,11 +451,13 @@ void Calc(list<CalcNode> rpn) {
         }
         if ( opname == "+" || opname == "*" || opname == "-" || opname == "/"
             || opname == "^") {
+            if (DEBUGPRINT)
                 cout << "\nOper " ;
             double op1 = calcstack.front().getResult();
             calcstack.pop_front();
             double op2 = calcstack.front().getResult();
-            cout << op1 << opname << op2 << "=";
+            if (DEBUGPRINT)
+                cout << op1 << opname << op2 << "=";
             if ( opname == "+" ) {
                 op1 += calcstack.front().getResult();
             } else
@@ -445,7 +477,8 @@ void Calc(list<CalcNode> rpn) {
             calcstack.pop_front();
             r.setResult(op1);
             calcstack.push_front(r);
-            cout << op1;
+            if (DEBUGPRINT)
+                cout << op1;
         }
 //        if ( opname == "*" ) {
 //            double op1 = calcstack.front().getResult();
@@ -475,39 +508,127 @@ void Calc(list<CalcNode> rpn) {
 
     }
     double res = calcstack.front().getResult();
-    cout << "\n\nResult = " << res;
+    //cout << "\n\nResult = " << res;
+    return res;
+}
+
+class Formula {
+public:
+    Formula(string s, int s_start=0) :str_formula(s),srt_start(s_start) {};
+    void setStrFormula(string s, int s_start=0) { }; //?
+    void Calc() {
+        parse();
+        list2RPN();
+        Result = _Calc(rpn);
+        Variables.insert(make_pair(name,Result));
+    };
+    void printLCN() {
+        std::for_each(lcn.begin(),lcn.end(),[](CalcNode cn){cn.print();cout << "\n";});
+    }
+    void printRPN() {
+        std::for_each(rpn.begin(),rpn.end(),[](CalcNode cn){cn.print();cout << "\n";});
+    }
+    inline string getName() {return name;}
+    inline double getResult() {return Result;}
+    void printResult() {
+        cout << name << " = " << Result << endl;
+    }
+
+private:
+    void parse() {
+        unsigned int n1 = str_formula.find(';',srt_start);
+        unsigned int n2 = str_formula.find('=',srt_start);
+        if (n2!=std::string::npos) {
+            if (n2<n1) {
+                name = str_formula.substr(srt_start,n2);
+                srt_start = n2+1;
+            }
+        }
+        lcn = _parse(str_formula,srt_start);
+        };
+    void list2RPN() {
+        rpn = _list2RPN(lcn);
+    };
+    list <CalcNode> lcn;
+    list <CalcNode> rpn;
+    string str_formula;
+    int srt_start;
+    string name = "Noname";
+    double Result;
+};
+
+void printUsage() {
+    cout << "Formula Calculator (ver.0.3)\n\n";
+    cout << "Usage:\n";
+    cout << "  fc <formula>[;<formula2...]\n\n";
+    cout << "  where formula is [<name>=]1+2*4\n";
+    cout << "  Availabale operations: +-*/^\n";
+    cout << "  Availabale functions: sqrt sin cos\n\n";
+    cout << "Examples:\n";
+    cout << "  1+2\n";
+    cout << "  x=1+2;y=2-3\n";
+    cout << "  x=1;f=sin(x)^2+cos(x)^2\n";
+
+    exit(0);
+}
+
+string getCmdl(int argc, char* argv[]) {
+    if (argc<2)
+        printUsage();
+    string cmdl = "";
+    for(int i = 1; i < argc; i++)
+        cmdl += argv[i];
+      //cout << "argv[" << i << "] = " << argv[i] << endl;
+
+    cmdl.erase(cmdl.find_last_not_of("; \n\r\t")+1);
+
+    cmdl += ';';
+    return cmdl;
 }
 
 int main(int argc, char* argv[])
 {
-    cout << "Hello world!" << endl;
-    string cmdl = "";
-    for(int i = 1; i < argc; i++)
-        cmdl += argv[i];
-    cmdl += ' ';
-      //cout << "argv[" << i << "] = " << argv[i] << endl;
+    //cout << "Hello world!" << endl;
 
-    op.lop.push_back(Operation("NOP",0,0,0));
-    op.lop.push_back(Operation("+", 20,0,2));
-    op.lop.push_back(Operation("-", 20,0,2));
-    op.lop.push_back(Operation("*", 30,0,2));
-    op.lop.push_back(Operation("/", 30,0,2));
-    op.lop.push_back(Operation("^", 40,0,2));
-    op.lop.push_back(Operation("(", 10,0,0));
-    op.lop.push_back(Operation(")", 10,0,0));
-    op.lop.push_back(Operation("sin(",10,0,1));
-    op.lop.push_back(Operation("cos(",10,0,1));
-    op.lop.push_back(Operation("sqrt(",10,0,1));
+    string cmdl = getCmdl(argc, argv);
+    cout << cmdl << endl;
+    Operations::addOper(Operation("NOP",0,0,0));
+    Operations::addOper(Operation("+", 20,0,2));
+    Operations::addOper(Operation("-", 20,0,2));
+    Operations::addOper(Operation("*", 30,0,2));
+    Operations::addOper(Operation("/", 30,0,2));
+    Operations::addOper(Operation("^", 40,0,2));
+    Operations::addOper(Operation("(", 10,0,0));
+    Operations::addOper(Operation(")", 10,0,0));
+    Operations::addOper(Operation("sin(",10,0,1));
+    Operations::addOper(Operation("cos(",10,0,1));
+    Operations::addOper(Operation("sqrt(",10,0,1));
 
-    list<CalcNode> lcn;
+    list<Formula> lf;
+    int start_pos = 0;
+    while (true) {
+        unsigned int n = cmdl.find(';',start_pos);
+        if (n==std::string::npos)
+            break;
+        Formula f(cmdl,start_pos);
+        f.Calc();
+        f.printResult();
+        start_pos = n+1;
+
+    }
+
+    //Formula f(cmdl,0);
+    //list<CalcNode> lcn;
     //lcn = parse("(1+2)*e+sin(3.14) ",0);
     //lcn = parse("(1+2)*3 ",0);
-    lcn = parse(cmdl,0);
-    std::for_each(lcn.begin(),lcn.end(),[](CalcNode cn){cn.print();cout << "\n";});
-cout << "================================\n\n";
-    list<CalcNode> rpn;
-    rpn = list2RPN(lcn);
-    std::for_each(rpn.begin(),rpn.end(),[](CalcNode cn){cn.print();cout << "\n";});
-    Calc(rpn);
+    //lcn = parse(cmdl,0);
+    //f.parse();
+    //f.printLCN();
+    //cout << "================================\n\n";
+    //list<CalcNode> rpn;
+    //rpn = _list2RPN(lcn);
+//    f.list2RPN();
+//    f.printRPN();
+    //f.Calc();
     return 0;
 }
