@@ -4,6 +4,11 @@
 
     @author
 
+    @todo
+    1. вместе с ошибкой вывести номер позиции в которой случился трабл
+        он у нас должен быть записан в NodeCalc::col
+    2. Отловить ошибки вычиления (деление на 0, tan(pi/2) и т.д.)
+    3. ?
 */
 #include <iostream>
 #include <sstream>
@@ -62,9 +67,9 @@ struct Operation {
 
 /**
     Список операций
-    фактически просто таблица, один раз набивается данными
-    (нужно было бы сделать ее статической наверное и возможно не list а map)
-    - используется при парсинке
+    фактически просто таблица, один раз набивается данными - используется при парсинке
+    (переделал ее в статическую -- не знаю может в c++ как то по другому таких штуки решают
+     и может нужно было использовать не list а map)
 */
 class Operations {
 public:
@@ -97,8 +102,6 @@ list<Operation> Operations::lop {};
 
 /**
     Класс для хранения операций и операндов
-
-
 */
 class CalcNode {
 public:
@@ -130,7 +133,9 @@ public:
         ss << r;
         ss >> result;
 
-        if (ss.fail()) { /*!!! error */ }
+        if (ss.fail()) { /*!!! error */
+            throw std::runtime_error("Error convert string to double: "+r);
+        }
         calculated = true;
     }
     double getResult() { return result; }
@@ -160,7 +165,7 @@ private:
   @param str -
   @param s_start
 
-  @return -
+  @return - список CalcNode
 
   На входе выражение типа 2*(3+4)/
   На выходе список узлов Number 2, Oper *, Oper ( и т.д.
@@ -291,6 +296,7 @@ list<CalcNode> _parse(string str, int s_start, int s_end = 0) {
             } else {
                 //!!!ошибка
 // TODO (kis#1#):
+                throw std::runtime_error("Wrong number: "+temp+str[i]);
             }
             continue;
         }
@@ -302,6 +308,7 @@ list<CalcNode> _parse(string str, int s_start, int s_end = 0) {
                 type = ALPHA;
             }else {
                 //!!!ошибка
+                throw std::runtime_error("Wrong number: "+temp+str[i]);
             }
             continue;
         }
@@ -356,6 +363,7 @@ list<CalcNode> _list2RPN(list<CalcNode> lcn) {
             while ( true ) {
                 if (t_list.empty()) {
                     //!!!ошибка
+                    throw std::runtime_error("Mismatched parenthesis? Can't find: (");
                 }
                 string s = t_list.front().getName();
                 rpn_list.push_back(t_list.front());
@@ -404,12 +412,20 @@ list<CalcNode> _list2RPN(list<CalcNode> lcn) {
 }
 
 
+/**
+    Хранилище переменных - пара <имя,значение>
+    После вычисления выражения сюда же добавляется результат
+    (с именем, которое стоит до равно т.е.
+       x=1;f=sin(x)
+    добавит в Variables переменную x со значением 1
+    и в следующей формуле будет вычислено f=sin(1)
+*/
 map <string,double> Variables = {{ "e", 2.7182818284590452354 },
                                  { "pi", 3.14159265358979323846 },///map явно инициализирована
                                  { "Sister", 20. }};
+
 /**
     Функция для подстановки переменных
-    (временно, нужно придумать что то получше)
 */
 double getVar(string var) {
     map<string,double>::iterator it = Variables.find(var);
@@ -429,7 +445,7 @@ double getVar(string var) {
 
 
 /**
-    Вычисление выражения по обратной польсокй записи
+    Вычисление выражения по обратной польской записи
 */
 double _Calc(list<CalcNode> rpn) {
     list<CalcNode> calcstack;
@@ -453,6 +469,11 @@ double _Calc(list<CalcNode> rpn) {
             || opname == "^") {
             if (DEBUGPRINT)
                 cout << "\nOper " ;
+
+            //в стеке должно быть два значения
+            if (calcstack.size()<2) {
+                    throw std::runtime_error("No value in: "+opname);
+            }
             double op1 = calcstack.front().getResult();
             calcstack.pop_front();
             double op2 = calcstack.front().getResult();
@@ -489,8 +510,13 @@ double _Calc(list<CalcNode> rpn) {
 //            calcstack.push_front(r);
 //        }
         if ( *opname.rbegin() == '(' ) {
+            if (DEBUGPRINT)
                 cout << "\n" << opname << calcstack.front().getResult() << ")";
             double op1;
+            //в стеке должно быть по крайней мере одно значения
+            if (calcstack.empty()) {
+                    throw std::runtime_error("No value in: "+opname);
+            }
             if ( opname == "sqrt(" ) {
                op1 = sqrt(calcstack.front().getResult());
             }
@@ -500,10 +526,52 @@ double _Calc(list<CalcNode> rpn) {
             if ( opname == "cos(" ) {
                op1 = cos(calcstack.front().getResult());
             }
+
+            if ( opname == "asin(" ) {
+               op1 = asin(calcstack.front().getResult());
+            }
+            if ( opname == "acos(" ) {
+               op1 = acos(calcstack.front().getResult());
+            }
+            if ( opname == "tan(" ) {
+               op1 = tan(calcstack.front().getResult());
+            }
+            if ( opname == "atan(" ) {
+               op1 = atan(calcstack.front().getResult());
+            }
+            if ( opname == "exp(" ) {
+               op1 = exp(calcstack.front().getResult());
+            }
+            if ( opname == "log(" ) {
+               op1 = log(calcstack.front().getResult());
+            }
+            if ( opname == "log10(" ) {
+               op1 = log10(calcstack.front().getResult());
+            }
+            if ( opname == "log2(" ) {
+               op1 = log2(calcstack.front().getResult());
+            }
+            if ( opname == "ceil(" ) {
+               op1 = ceil(calcstack.front().getResult());
+            }
+            if ( opname == "floor(" ) {
+               op1 = floor(calcstack.front().getResult());
+            }
+            if ( opname == "trunc(" ) {
+               op1 = trunc(calcstack.front().getResult());
+            }
+            if ( opname == "abs(" ) {
+               op1 = abs(calcstack.front().getResult());
+            }
+//asin acos tan(tg?) atan exp log log10 log2 ceil floor trunc abs
+//            if ( opname == "(" ) {
+//               op1 = cos(calcstack.front().getResult());
+//            }
             calcstack.pop_front();
             r.setResult(op1);
             calcstack.push_front(r);
-            cout << " = " << op1;
+            if (DEBUGPRINT)
+                cout << " = " << op1;
         }
 
     }
@@ -512,6 +580,24 @@ double _Calc(list<CalcNode> rpn) {
     return res;
 }
 
+/**
+    Класс для объединения всего расчета
+    - парсинг строки
+    - перевод в ОПЗ
+    - вычисление выражения
+
+    В парсинге исходной строки добавлен поиск знака =
+    все что слева будем считать за имя переменной, которая считается
+    x=1+2...
+    если = нет то назначается имя Noname
+
+    После вычисления выражения результат заносится в map Variables и может быть использован
+    для подстановки в другую формулу
+
+    TODO !!! Прим.
+    нужно было все глобальные функции убрать внутрь класс, но лень...
+
+*/
 class Formula {
 public:
     Formula(string s, int s_start=0) :str_formula(s),srt_start(s_start) {};
@@ -540,7 +626,14 @@ private:
         unsigned int n2 = str_formula.find('=',srt_start);
         if (n2!=std::string::npos) {
             if (n2<n1) {
-                name = str_formula.substr(srt_start,n2);
+                // выделим имя переменной и уберем пробелы вокруг имени
+                name = str_formula.substr(srt_start,n2-srt_start);
+                name.erase(name.find_last_not_of(" ")+1);
+                name.erase(0, name.find_first_not_of(" "));
+////                cout << "\n" << "n2=" << n2 <<"\n" ;
+////                cout << "srt_start: " << srt_start << "\n";
+////                cout << str_formula <<"\n";
+////                cout << "\n"<< name << "!\n";
                 srt_start = n2+1;
             }
         }
@@ -558,12 +651,13 @@ private:
 };
 
 void printUsage() {
-    cout << "Formula Calculator (ver.0.3)\n\n";
+    cout << "Incredible Formula Calculator (ver.0.3)\n\n";
     cout << "Usage:\n";
     cout << "  fc <formula>[;<formula2...]\n\n";
     cout << "  where formula is [<name>=]1+2*4\n";
     cout << "  Availabale operations: +-*/^\n";
-    cout << "  Availabale functions: sqrt sin cos\n\n";
+    cout << "  Availabale functions: sqrt sin cos asin acos tan(tg?) atan exp\n";
+    cout << "                        log log10 log2 ceil floor trunc abs\n\n";
     cout << "Examples:\n";
     cout << "  1+2\n";
     cout << "  x=1+2;y=2-3\n";
@@ -591,7 +685,9 @@ int main(int argc, char* argv[])
     //cout << "Hello world!" << endl;
 
     string cmdl = getCmdl(argc, argv);
+    cout << "Incredible Formula Calculator (ver.0.3)\n\n";
     cout << cmdl << endl;
+    cout << "\nResult:\n";
     Operations::addOper(Operation("NOP",0,0,0));
     Operations::addOper(Operation("+", 20,0,2));
     Operations::addOper(Operation("-", 20,0,2));
@@ -603,7 +699,31 @@ int main(int argc, char* argv[])
     Operations::addOper(Operation("sin(",10,0,1));
     Operations::addOper(Operation("cos(",10,0,1));
     Operations::addOper(Operation("sqrt(",10,0,1));
+    Operations::addOper(Operation("tan(",10,0,1));
 
+    Operations::addOper(Operation("asin(",10,0,1));
+    Operations::addOper(Operation("acos(",10,0,1));
+    Operations::addOper(Operation("atan(",10,0,1));
+    Operations::addOper(Operation("exp(",10,0,1));
+    Operations::addOper(Operation("log(",10,0,1));
+
+    Operations::addOper(Operation("log10(",10,0,1));
+    Operations::addOper(Operation("log2(",10,0,1));
+    Operations::addOper(Operation("ceil(",10,0,1));
+    Operations::addOper(Operation("floor(",10,0,1));
+    Operations::addOper(Operation("trunc(",10,0,1));
+//asin acos tan(tg?) atan exp log log10 log2 ceil floor trunc abs
+// добавлять функции нужно в двух местах, тут для парсинга и
+// в функции _calc для расчета -- не очень удобно, но по другому вряд ли получится
+    Operations::addOper(Operation("abs(",10,0,1));
+
+/**
+    При обработке входных аргументов мы добавили в конце ;
+    ; -- разделитель формул (если их больше одной)
+    первая формула начинается с 0
+    затем мы ищем ; и со следущего символа у нас новая формула
+    эту позицию мы передаем в конструктор класса Formula
+*/
     list<Formula> lf;
     int start_pos = 0;
     while (true) {
