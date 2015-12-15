@@ -1,13 +1,13 @@
 /**
     Formula Calculator
-    v.0.3
+    v.0.3.1
 
     @author
 
     @todo
     1. вместе с ошибкой вывести номер позиции в которой случился трабл
         он у нас должен быть записан в NodeCalc::col
-    2. Отловить ошибки вычиления (деление на 0, tan(pi/2) и т.д.)
+    2. Отловить ошибки вычиcления (деление на 0, tan(pi/2) и т.д.)
     3. ?
 */
 #include <iostream>
@@ -516,6 +516,9 @@ double _Calc(list<CalcNode> rpn) {
             //в стеке должно быть по крайней мере одно значения
             if (calcstack.empty()) {
                     throw std::runtime_error("No value in: "+opname);
+            }
+            if ( opname == "(" ) {
+               op1 = calcstack.front().getResult();
             }
             if ( opname == "sqrt(" ) {
                op1 = sqrt(calcstack.front().getResult());
